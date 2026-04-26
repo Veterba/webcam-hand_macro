@@ -59,16 +59,6 @@ class HandTracker:
         lm = result.hand_landmarks[0]
         return np.array([[p.x, p.y, p.z] for p in lm], dtype=np.float32)
 
-
-def normalize_landmarks(pts):
-    if pts is None:
-        return None
-    out = pts - pts[0]
-    scale = np.linalg.norm(out[9])
-    if scale > 1e-6:
-        out = out / scale
-    return out.astype(np.float32)
-
     def draw(self, frame_bgr, landmarks_xyz):
         if landmarks_xyz is None:
             return
@@ -78,3 +68,13 @@ def normalize_landmarks(pts):
             cv2.line(frame_bgr, pts[a], pts[b], (0, 200, 0), 2)
         for p in pts:
             cv2.circle(frame_bgr, p, 3, (0, 0, 255), -1)
+
+
+def normalize_landmarks(pts):
+    if pts is None:
+        return None
+    out = pts - pts[0]
+    scale = np.linalg.norm(out[9])
+    if scale > 1e-6:
+        out = out / scale
+    return out.astype(np.float32)
