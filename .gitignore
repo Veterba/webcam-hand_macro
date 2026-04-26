@@ -1,0 +1,7 @@
+data/
+.env
+__pycache__/
+.venv/
+models/hand_landmarker.task
+models/*.pt
+*.pyc
