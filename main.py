@@ -17,7 +17,7 @@ from config import (
     SEQ_LEN,
 )
 from gesture_model import GestureNet
-from hand_tracker import HandTracker, normalize_landmarks
+from hand_tracker import HandTracker
 
 
 def run(model_path):
@@ -30,12 +30,8 @@ def run(model_path):
 
     tracker = HandTracker()
     cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        raise SystemExit("could not open webcam")
     buffer = deque(maxlen=SEQ_LEN)
     last_trigger = {g: 0.0 for g in GESTURES}
-    last_fired_label = None
-    failed_reads = 0
 
     pred_label = "..."
     pred_conf = 0.0
@@ -43,20 +39,14 @@ def run(model_path):
     while True:
         ret, frame = cap.read()
         if not ret:
-            failed_reads += 1
-            if failed_reads > 30:
-                raise SystemExit("webcam stopped delivering frames")
-            cv2.waitKey(50)
             continue
-        failed_reads = 0
         frame = cv2.flip(frame, 1)
         landmarks = tracker.process(frame)
         tracker.draw(frame, landmarks)
-        norm = normalize_landmarks(landmarks)
 
         flat = (
-            norm.flatten()
-            if norm is not None
+            landmarks.flatten()
+            if landmarks is not None
             else np.zeros(NUM_FEATURES, dtype=np.float32)
         )
         buffer.append(flat)
@@ -69,10 +59,9 @@ def run(model_path):
                 pred_label = GESTURES[idx]
                 pred_conf = float(probs[idx])
 
-            if pred_label == "idle" or pred_conf < CONFIDENCE_THRESHOLD:
-                last_fired_label = None
-            elif (
-                pred_label != last_fired_label
+            if (
+                pred_label != "idle"
+                and pred_conf >= CONFIDENCE_THRESHOLD
                 and time.time() - last_trigger[pred_label] >= COOLDOWN_SECONDS
             ):
                 action_name = ACTION_MAP.get(pred_label)
@@ -80,7 +69,6 @@ def run(model_path):
                 if fn is not None:
                     fn()
                     last_trigger[pred_label] = time.time()
-                    last_fired_label = pred_label
                     print(f"triggered: {pred_label} ({pred_conf:.2f})")
 
         color = (0, 255, 0) if pred_conf >= CONFIDENCE_THRESHOLD else (0, 165, 255)
@@ -93,7 +81,7 @@ def run(model_path):
             color,
             2,
         )
-        cv2.imshow("gesture macro", frame)
+        cv2.imshow("hand macro", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
